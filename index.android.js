@@ -9,45 +9,154 @@ import {
   AppRegistry,
   StyleSheet,
   Text,
-  View
+  View,
+  ListView,
+  Image,
+  Navigator,
+  TouchableWithoutFeedback,
+  WebView
 } from 'react-native';
 
-export default class ReactReader extends Component {
-  render() {
+var QIITA_URL = "https://qiita.com/api/v2/tags/reactjs/items";
+
+var ReactQiitaNavigator = React.createClass({
+  render: function() {
+    return (
+      <Navigator
+        style={styles.navigator}
+        initialRoute={{ title: 'ReactQiita', index: 0 }}
+        renderScene={this.renderScene}
+      />
+    );
+  },
+  renderScene: function(route, navigator) {
+    if (route.title == 'ReactQiita') {
+      return <ReactQiitaList title={route.title} navigator={navigator}/>
+    }
+    if (route.title == 'Detail') {
+      return <ReactQiitaItemView title={route.title} navigator={navigator} url={route.url}/>
+    }
+  }
+})
+
+
+
+
+var ReactQiitaList = React.createClass({
+  getInitialState: function() {
+    return {
+      items: new ListView.DataSource({
+        rowHasChanged: (row1, row2) => row1 !== row2,
+      }),
+      loaded: false,
+    };
+  },
+
+  componentDidMount: function() {
+    this.fetchData();
+  },
+
+  render: function() {
+    if (!this.state.loaded) {
+      return this.renderLoadingView();
+    }
+
+    return (
+      <ListView
+        dataSource={this.state.items}
+        renderRow={this.renderItem}
+        style={styles.listView}/>
+    );
+  },
+
+  renderLoadingView: function() {
     return (
       <View style={styles.container}>
-        <Text style={styles.welcome}>
-          Welcome to React Native!
-        </Text>
-        <Text style={styles.instructions}>
-          To get started, edit index.android.js
-        </Text>
-        <Text style={styles.instructions}>
-          Double tap R on your keyboard to reload,{'\n'}
-          Shake or press menu button for dev menu
+        <Text>
+          Loading ...
         </Text>
       </View>
     );
-  }
-}
+  },
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5FCFF',
+  renderItem: function(item, sectionID, rowID) {
+    return (
+      <TouchableWithoutFeedback onPress={() => this.onPressed(item)}>
+      <View style={styles.container}>
+        <Image
+          source={{uri: item.user.profile_image_url}}
+          style={styles.thumbnail}/>
+        <View style={styles.rightContainer}>
+          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.name}>{item.user.id}</Text>
+        </View>
+      </View>
+      </TouchableWithoutFeedback>
+    );
   },
-  welcome: {
-    fontSize: 20,
-    textAlign: 'center',
-    margin: 10,
+
+  fetchData: function() {
+    fetch(QIITA_URL)
+      .then((response) => response.json())
+      .then((responseData) => {
+        this.setState({
+          items: this.state.items.cloneWithRows(responseData),
+          loaded: true,
+        });
+      })
+      .done();
   },
-  instructions: {
-    textAlign: 'center',
-    color: '#333333',
-    marginBottom: 5,
+
+  onPressed: function(item) {
+    this.props.navigator.push({
+      title: 'Detail',
+      index: 1,
+      url: item.url,
+    });
   },
 });
 
-AppRegistry.registerComponent('ReactReader', () => ReactReader);
+var ReactQiitaItemView = React.createClass({
+  render: function() {
+    return (
+      <WebView
+        source={{uri: this.props.url}}/>
+    )
+  }
+});
+
+const styles = StyleSheet.create({
+  navigator: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  rightContainer: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 15,
+    margin: 8,
+    textAlign: 'left',
+  },
+  name: {
+    fontSize: 12,
+    margin: 8,
+    textAlign: 'left',
+  },
+  thumbnail: {
+    width: 80,
+    height: 80,
+    margin: 2,
+  },
+  listView: {
+    backgroundColor: '#FFFFFF',
+  },
+});
+
+AppRegistry.registerComponent('ReactReader', () => ReactQiitaNavigator);
